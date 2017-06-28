@@ -5,7 +5,7 @@
 
 # USAGE:  python solitaire.py 
 
-from cards import card, deck, UNICODES
+from cards import *
 VALUES = ['ace', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'jack', 'queen', 'king']
 
 RED='\033[0;31m'
