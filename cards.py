@@ -1,4 +1,3 @@
-#!/bin/bash
 # TITLE:  cards.py
 # AUTHOR: M. Montgomery
 # DATE:   06.28.2017
