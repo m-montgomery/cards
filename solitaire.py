@@ -1,9 +1,9 @@
 #!/bin/bash
-# TITLE:  soli.py
-# AUTHOR: Maya U. Montgomery
-# DATE:   06.12.2017
+# TITLE:  solitaire.py
+# AUTHOR: M. Montgomery
+# DATE:   06.28.2017
 
-# USAGE:  python soli.py 
+# USAGE:  python solitaire.py 
 
 from cards import card, deck, UNICODES
 VALUES = ['ace', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'jack', 'queen', 'king']
@@ -12,47 +12,6 @@ RED='\033[0;31m'
 NC='\033[0m'
 # ex: echo -e "Print ${RED}this${NC} in red."
 
-
-class pile(deck):
-    def __init__(self, populate=False, cards=[]):
-	deck.__init__(self, populate)
-	if cards != []:
-	    self.cards = cards
-	self.stackIndex = 0                    # index of first facedown card in list
-	for i in range(len(self.cards)-1, -1, -1):
-	    if not self.cards[i].faceup:
-		self.stackIndex = i
-		break
-
-    def __repr__(self):
-        if self.empty():
-            return ['__']
-	return [card.__repr__() for card in self.cards]
-
-    def add(self, card, visible=False):
-	if visible:
-	    card.flipUp()
-	    self.cards.append(card)           # last card in list is topmost on stack
-	else:
-	    self.cards.insert(self.stackIndex+1, card) # add to top of facedown stack
-	    self.stackIndex += 1
-	
-    def remove(self, index=-1):
-	self.cards.pop(index)         # remove 'top' card by default
-
-    def get(self, index=-1):
-	if not self.empty():
-	    return self.cards[index]  # return 'top' card by default
-
-    def top(self):
-	return self.get()
-
-    def numFaceup(self):
-	tot = 0
-	for c in self.cards:
-	    if c.faceup:
-		tot += 1
-	return tot
 
 class manager:
     def __init__(self):
