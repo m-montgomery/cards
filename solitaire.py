@@ -5,12 +5,6 @@
 # USAGE:  python solitaire.py 
 
 from cards import *
-VALUES = ['ace', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'jack', 'queen', 'king']
-
-RED='\033[0;31m'
-NC='\033[0m'
-# ex: echo -e "Print ${RED}this${NC} in red."
-
 
 class manager:
     def __init__(self):
@@ -186,8 +180,12 @@ class manager:
 	        print(str(FROM.get(i)) + " must be a different color than " +\
 	              str(FROM.get(i-1)))
 	        return
+            if not FROM.get(i).isOneLessThan(FROM.get(i-1)):
+
+"""
 	    index = VALUES.index(FROM.get(i).val) + 1
 	    if index < 13 and VALUES[index] != FROM.get(i-1).val:
+"""
 		print("Cards aren't consecutive; " + str(FROM.get(i)) +\
 		      " is not one less than " + str(FROM.get(i-1)))
 		return
@@ -201,15 +199,13 @@ class manager:
 	    
 	    # moving to suit pile; to pile card must be smaller
 	    if toPile not in range(1,8):
-	        index = VALUES.index(topFromCard.val) - 1
-	        if VALUES[index] != toCard.val:
+                if not topFromCard.isOneMoreThan(toCard):
 	       	    print("Cards aren't consecutive; " + str(topFromCard) +\
                           " is not one more than " + str(toCard))
 	    	    return
 	    # moving to hand pile; to pile card must be higher
 	    else:
-	        index = VALUES.index(topFromCard.val) + 1
-	        if VALUES[index] != toCard.val:
+                if not topFromCard.isOneLessThan(toCard):
 		    print("Cards aren't consecutive; " + str(topFromCard) +\
                           " is not one less than " + str(toCard))
 		    return

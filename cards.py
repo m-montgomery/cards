@@ -14,82 +14,129 @@ UNICODES = {
   'DIAMONDS':RED+"\xE2\x99\xA6"+BLACK}
 
 class card:
-    def __init__(self, suit, val):
-        self.suit = suit
-        self.val = val
+    def __init__(self, suit, val, points=0):
+        self.suit = suit        # Hearts, Diamonds, Spades, Clubs
+        self.val = val          # e.g. a for ace, 5 for five, 1 for ten
+        self.points = points    # point value, e.g. 10 for face cards
+
         self.name = val[0] + suit[0]
         self.faceup = False
 	self.color = RED if self.suit in ['Hearts', 'Diamonds'] else BLACK
 
     def __repr__(self):
+        """ Display -- for facedown cards, otherwise 1-character value & suit symbol. """
         return self.color + self.val[0] + UNICODES[self.suit.upper()] if self.faceup else "--"
 
+    def __eq__(self, other):
+        return self.name == other.name
+
     def flip(self):
-        if self.faceup:
-            self.faceup = False
-        else:
-            self.faceup = True
+        """ Flip card. """
+        self.faceup = False if self.faceup else True
 
     def flipUp(self):
+        """ Make card face up. """
 	self.faceup = True
 
     def flipDown(self):
+        """ Make card face down. """
 	self.faceup = False
+
+    def isOneLessThan(self, other):
+        """ Return true if self has value one less than the other card. """
+        return other.points == self.points + 1
+
+    def isOneMoreThan(self, other):
+        """ Return true if self has value one greater than the other card. """
+        return not other.points == self.points - 1
 
 
 class deck:
     def __init__(self, populate=True):
         self.cards = []
+
+        # make a new deck
 	if populate:
             for s in ['Diamonds','Clubs','Hearts','Spades']:
+                self.cards.append(s, 'ace', 1)             # by default, aces are low
                 for v in range(2,11):
-                    self.cards.append(card(s, str(v)))
-                for v in ['jack','queen','king','ace']:
-                    self.cards.append(card(s, v))
+                    self.cards.append(card(s, str(v), v))  # suit, value, point value
+                for v in ['jack','queen','king']:
+                    self.cards.append(card(s, v, 10))
+            self.shuffle()
 
     def __repr__(self):
+        """ Return list of cards. """
 	return str([card.__str__() + ',' for card in self.cards])
 
     def empty(self):
+        """ Return true if empty. """
         return self.cards == []
 
     def repopulate(self, cards):
+        """ Set deck to new list of cards. """
 	self.cards = cards
 
     def shuffle(self):
+        """ Shuffle cards into random order.. """
         newDeck = []
         while self.cards != []:
             num = random.randint(0,len(self.cards)-1)
             card = self.cards[num]
             self.cards.pop(num)
             newDeck.append(card)
-
         self.cards = newDeck
 
     def deal(self):
+        """ Return the topmost card or None if empty. """
 	if self.empty():
             return None
         card = self.cards.pop(0)
         return card
 
+    def acesLow(self):
+        """ Set aces to low. """
+        self.setPoints('ace', 1)
+
+    def acesHigh(self):
+        """ Set aces to high. """
+        self.setPoints('ace', 10)
+
+    def setPoints(self, val, points, suit=""):
+        """ Set point value of a card. """
+        for card in self.cards:
+            if card.val == val:                      # point value of card sometimes changes
+                if suit != "" and card.suit == suit: # by suit (e.g. Queen of Spades in Hearts)
+                    card.points = points
+
+
 
 class pile(deck):
+    """ A stack of cards, with any facedown cards 'beneath' faceup cards. """
+
     def __init__(self, populate=False, cards=[]):
+        
+        # make a deck
         deck.__init__(self, populate)
         if cards != []:
             self.cards = cards
-        self.stackIndex = 0                    # index of first facedown card in list
+
+        # get index of first facedown card in list
+        self.stackIndex = 0
         for i in range(len(self.cards)-1, -1, -1):
             if not self.cards[i].faceup:
                 self.stackIndex = i
                 break
 
     def __repr__(self):
+        """ Display pile as __ when empty or a list of cards. """
         if self.empty():
             return ['__']
         return [card.__repr__() for card in self.cards]
 
     def add(self, card, visible=False):
+        """ Add faceup card to top of stack; 
+            slip facedown card in stack as the topmost facedown. """
         if visible:
             card.flipUp()
             self.cards.append(card)           # last card in list is topmost on stack
@@ -98,20 +145,24 @@ class pile(deck):
             self.stackIndex += 1
 
     def remove(self, index=-1):
+        """ Remove card at given index. """
         self.cards.pop(index)         # remove 'top' card by default
 
     def get(self, index=-1):
+        """ Return card at given index. """
         if not self.empty():
             return self.cards[index]  # return 'top' card by default
 
     def top(self):
+        """ Return topmost card. """
         return self.get()
 
     def numFaceup(self):
-        tot = 0
-        for c in self.cards:
-            if c.faceup:
-                tot += 1
-        return tot
+        """ Return number of faceup cards. """
+        total = 0
+        for card in self.cards:
+            if card.faceup:
+                total += 1
+        return total
 
 
