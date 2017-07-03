@@ -1,17 +1,17 @@
 # TITLE:  cards.py
 # AUTHOR: M. Montgomery
-# DATE:   06.28.2017
+# DATE:   07.03.2017
 
 import random
 
 RED = '\033[31m'
 BLACK = '\033[0m'
 
-UNICODES = {
+SYMBOLS = {
   'SPADES':"\xE2\x99\xA0",
   'CLUBS':"\xE2\x99\xA3",
-  'HEARTS':RED+"\xE2\x99\xA5"+BLACK,
-  'DIAMONDS':RED+"\xE2\x99\xA6"+BLACK}
+  'HEARTS':"\xE2\x99\xA5"+BLACK,
+  'DIAMONDS':"\xE2\x99\xA6"+BLACK}
 
 class card:
     def __init__(self, suit, val, points=0):
@@ -22,13 +22,22 @@ class card:
         self.name = val[0] + suit[0]
         self.faceup = False
 	self.color = RED if self.suit in ['Hearts', 'Diamonds'] else BLACK
+        self.colorize = True
+        self.useSymbol = True
 
     def __repr__(self):
-        """ Display -- for facedown cards, otherwise 1-character value & suit symbol. """
-        return self.color + self.val[0] + UNICODES[self.suit.upper()] if self.faceup else "--"
+        """ Display -- for facedown cards, otherwise 1-character value & suit letter / symbol. """
+        if self.faceup:
+            suit = SYMBOLS[self.suit.upper()] if self.useSymbol else self.suit[0]
+            return self.color + self.val[0] + suit if self.colorize else\
+                   self.val[0] + suit
+        else:
+            return "--"
+                
 
     def __eq__(self, other):
         return self.name == other.name
+
 
     def flip(self):
         """ Flip card. """
@@ -41,6 +50,7 @@ class card:
     def flipDown(self):
         """ Make card face down. """
 	self.faceup = False
+
 
     def isOneLessThan(self, other):
         """ Return true if self has value one less than the other card. """
@@ -58,16 +68,24 @@ class deck:
         # make a new deck
 	if populate:
             for s in ['Diamonds','Clubs','Hearts','Spades']:
-                self.cards.append(s, 'ace', 1)             # by default, aces are low
+                self.cards.append(card(s, 'ace', 1))       # by default, aces are low
                 for v in range(2,11):
                     self.cards.append(card(s, str(v), v))  # suit, value, point value
                 for v in ['jack','queen','king']:
                     self.cards.append(card(s, v, 10))
             self.shuffle()
+ 
+        self.colorize = True    # display hearts and diamonds in red
+        self.symbol = True      # display suit unicode symbols
 
     def __repr__(self):
         """ Return list of cards. """
 	return str([card.__str__() + ',' for card in self.cards])
+
+
+    def size(self):
+        """ Return number of cards in deck. """
+        return len(self.cards)
 
     def empty(self):
         """ Return true if empty. """
@@ -76,6 +94,12 @@ class deck:
     def repopulate(self, cards):
         """ Set deck to new list of cards. """
 	self.cards = cards
+
+        # ensure all cards have right color/symbol setting
+        if self.colorize:
+            self.yesColor()
+        if self.symbol:
+            self.yesSymbol()
 
     def shuffle(self):
         """ Shuffle cards into random order.. """
@@ -94,6 +118,7 @@ class deck:
         card = self.cards.pop(0)
         return card
 
+
     def acesLow(self):
         """ Set aces to low. """
         self.setPoints('ace', 1)
@@ -109,6 +134,45 @@ class deck:
                 if suit != "" and card.suit == suit: # by suit (e.g. Queen of Spades in Hearts)
                     card.points = points
 
+
+    def noColor(self):
+        """ Turn off displaying hearts and diamonds in red. """
+        for card in self.cards:
+            card.colorize = False
+        self.colorize = False
+
+    def yesColor(self):
+        """ Turn on displaying hearts and diamonds in red. """
+        for card in self.cards:
+            card.colorize = True
+        self.colorize = True
+
+    def toggleColor(self):
+        """ Toggle displaying hearts and diamonds in red. """
+        if self.colorize:
+            self.noColor()
+        else:
+            self.yesColor()
+
+
+    def noSymbol(self):
+        """ Turn off displaying suit unicode symbols. """
+        for card in self.cards:
+            card.useSymbol = False
+        self.symbol = False
+
+    def yesSymbol(self):
+        """ Turn on displaying suit unicode symbols. """
+        for card in self.cards:
+            card.useSymbol = True
+        self.symbol = True
+
+    def toggleSymbol(self):
+        """ Toggle suit unicode symbol display. """
+        if self.symbol:
+            self.noSymbol()
+        else:
+            self.yesSymbol()
 
 
 class pile(deck):
