@@ -1,6 +1,6 @@
 # TITLE:  solitaire.py
 # AUTHOR: M. Montgomery
-# DATE:   06.28.2017
+# DATE:   07.03.2017
 
 # USAGE:  python solitaire.py 
 
@@ -8,10 +8,11 @@ from cards import *
 
 class manager:
     def __init__(self):
-        self.drawDeck = pile(True)      # want to populate the deck
+        self.drawDeck = pile(True)      # True: want to auto-populate the deck
         self.drawDeck.shuffle()
 	self.discardDeck = []
 	self.drawnCard = None
+        self.drawStyle = 1              # default is 1-card draw
 
 	# make 4 empty suit piles
         self.dPile = pile()
@@ -31,10 +32,13 @@ class manager:
     def __repr__(self):
         text = ''
 
-	# display suit piles
-	for suit in ['HEARTS', 'SPADES', 'DIAMONDS', 'CLUBS']:
-	    text += UNICODES[suit] + '  '
-	text += ' '*6 + '0.\n'
+	# display suit piles (assumes color & symbol display)
+        text += RED + SYMBOLS['HEARTS'] + BLACK + ' '
+        text += SYMBOLS['SPADES'] + ' '
+        text += RED + SYMBOLS['DIAMONDS'] + BLACK + ' '
+        text += SYMBOLS['CLUBS'] + ' '
+	
+        text += ' '*6 + '0.\n'
         for p in [self.hPile, self.sPile, self.dPile, self.cPile]:
 	    if p.empty():
 		text += '__ '       
@@ -71,36 +75,59 @@ class manager:
 
 
     def play(self):
+        """ Main execution loop for gameplay. """
+
+        # get user choice
 	choice = ""
 	while choice != "e":
 	    print(self)
-	    print('')
-            choice = raw_input("Enter d to draw, pile # to move from, or e to exit: ")
-	    if choice == "d":
+	    print("Enter... \n- d to draw \n- # of pile to move from \n- c to auto-complete \n- o for options \n- e to exit \n")
+            choice = raw_input("Choice: ")
+
+            # call appropriate method
+	    if choice == "d":        # draw from deck
                 self.draw()
-	    elif choice == "e":
-		continue
-            else:
+	    elif choice == "e":      # quit game
+		continue 
+            elif choice == "c":      # try to auto-complete
+                self.autocomplete()
+            elif choice == "o":      # display options
+                self.options()
+            else:                    # move card(s)
 	        try:
 	            fromPile = int(choice)
 		    self.move(fromPile)
 	        except ValueError:
 	            print("From pile # must be between 0 and 8.")
 	            continue
-	    if self.win():
-		print("\nYOU WON!!")
-		print(self)
-		choice = "e"
+
+                # check for win
+	        if self.win():
+		    print("\nYOU WON!!")
+		    print(self)
+		    choice = "e"
 	    
 
     def win(self):
+        """ Check for completed game. """
         for p in [self.dPile, self.hPile, self.sPile, self.cPile]:
 	    if len(p.cards) != 13:       # assumes all errors were caught previously
 		return False
 	return True
 
+    def autocomplete(self):
+        """ Attempt to auto-complete the game. """
+        if not self.drawDeck.empty():
+            print("There are still cards in the draw deck. Cannot auto-complete.")
+            return
+        
+    def toggleDraw(self):
+        """ Toggle draw style between 1- and 3-card draw. """
+        self.drawStyle = 3 if self.drawStyle == 1 else 1
+
 
     def draw(self):
+        """ Draw a card from the draw deck. """
 	# repopulate the draw deck
 	if self.drawDeck.empty():
             if self.discardDeck != []:
@@ -110,13 +137,58 @@ class manager:
                 print("There are no more cards in the draw pile.")
 		return
 
-	# move old card; flip new card
+	# move old card
         old = self.drawnCard
 	if old != None:
       	    old.flipDown()
 	    self.drawDeck.remove()
-	    self.discardDeck.insert(0,old)
-        self.drawnCard = self.drawDeck.top()
+	    self.discardDeck.insert(0, old)
+
+        # draw 1 card
+        if self.drawStyle == 1:
+            self.drawnCard = self.drawDeck.top()
+        # draw 3 cards
+        else:
+            # move first 2 cards to discard
+            if self.drawDeck.size() >= 3:
+               for _ in range(2):
+                   c = self.drawDeck.top()
+                   self.drawDeck.remove()
+                   self.discardDeck.insert(0, c)
+               self.drawnCard = self.drawDeck.top()
+
+            # move discard back to draw deck, take 3rd card
+            elif self.drawDeck.size() + self.discardDeck.size() >= 3:
+                if self.drawDeck.size() == 2:
+                    for _ in range(2):
+                        c = self.drawDeck.top()
+                        self.drawDeck.remove()
+                        self.discardDeck.insert(0, c)
+                    self.drawDeck.repopulate(self.discardDeck)
+                    self.discardDeck = []
+                    self.drawnCard = self.drawDeck.top()
+                else:
+                    c = self.drawDeck.top()
+                    self.drawDeck.remove()
+                    self.discardDeck.insert(0, c)
+                    self.drawDeck.repopulate(self.discardDeck)
+                    self.discardDeck = []
+
+                    c = self.drawDeck.top()
+                    self.drawDeck.remove()
+                    self.discardDeck.insert(0, c)
+                    self.drawnCard = self.drawDeck.top()
+
+            # display only card
+            else:
+                for _ in range(self.drawDeck.size()):
+                    c = self.drawDeck.top()
+                    self.drawDeck.remove()
+                    self.discardDeck.insert(0, c)
+                    self.drawDeck.repopulate(self.discardDeck)
+                    self.discardDeck = []
+                    self.drawnCard = self.drawDeck.top()
+
 	if self.drawnCard is not None:
 	    self.drawnCard.flipUp()       # new card face up
 
@@ -182,10 +254,6 @@ class manager:
 	        return
             if not FROM.get(i).isOneLessThan(FROM.get(i-1)):
 
-"""
-	    index = VALUES.index(FROM.get(i).val) + 1
-	    if index < 13 and VALUES[index] != FROM.get(i-1).val:
-"""
 		print("Cards aren't consecutive; " + str(FROM.get(i)) +\
 		      " is not one less than " + str(FROM.get(i-1)))
 		return
@@ -230,7 +298,7 @@ class manager:
 	    self.drawnCard = lastCard
 	elif fromPile == 0 and not FROM.empty():
 	    FROM.top().flipUp()
-	    self.drawnCard = FROM.top()   # ?
+	    self.drawnCard = FROM.top()
 	elif fromPile == 0:
 	    self.drawnCard = None
 
@@ -246,6 +314,32 @@ class manager:
 	    if a.suit in ['Spades', 'Clubs']:
 	        return b.suit in ['Spades', 'Clubs']
 	    return b.suit in ['Diamonds', 'Hearts']
+
+
+    def options(self):
+        print("Game options: enter...")
+        print("- c to toggle colored-text display")
+        print("- s to toggle suit symbol display")
+        print("- d to toggle draw style (1 or 3 cards)")
+        choice = raw_input("Choice: ")
+        # toggle color display
+        if choice == "c":
+            for deck in self.hand:
+                deck.toggleColor()
+            for deck in [self.dPile, self.hPile, self.cPile, self.sPile]:
+                deck.toggleColor()
+            self.drawDeck.toggleColor()
+        # toggle symbol display
+        elif choice == "s":
+            for deck in self.hand:
+                deck.toggleSymbol()
+            for deck in [self.dPile, self.hPile, self.cPile, self.sPile]:
+                deck.toggleSymbol()
+            self.drawDeck.toggleSymbol()
+        # toggle draw style
+        elif choice == "d":
+            self.toggleDraw()
+        print('')
 
 
 def main():
