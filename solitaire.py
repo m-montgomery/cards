@@ -1,13 +1,28 @@
 # TITLE:  solitaire.py
 # AUTHOR: M. Montgomery
-# DATE:   07.03.2017
+# DATE:   07.05.2017
 
 # USAGE:  python solitaire.py 
 
 from cards import *
 
-class manager:
+class OrderException(Exception):
+    pass
+
+class ColorException(Exception):
+    pass
+
+class EmptyException(Exception):
+    pass
+
+class NotEmptyException(Exception):
+    pass
+
+
+
+class solitaire:
     def __init__(self):
+
         self.drawDeck = pile(True)      # True: want to auto-populate the deck
         self.drawDeck.shuffle()
 	self.discardDeck = []
@@ -33,10 +48,10 @@ class manager:
         text = ''
 
 	# display suit piles (assumes color & symbol display)
-        text += RED + SYMBOLS['HEARTS'] + BLACK + ' '
-        text += SYMBOLS['SPADES'] + ' '
-        text += RED + SYMBOLS['DIAMONDS'] + BLACK + ' '
-        text += SYMBOLS['CLUBS'] + ' '
+        text += RED + SYMBOLS['HEARTS'] + BLACK + '  '
+        text += SYMBOLS['SPADES'] + '  '
+        text += RED + SYMBOLS['DIAMONDS'] + BLACK + '  '
+        text += SYMBOLS['CLUBS'] + '  '
 	
         text += ' '*6 + '0.\n'
         for p in [self.hPile, self.sPile, self.dPile, self.cPile]:
@@ -73,6 +88,27 @@ class manager:
 
         return text
 
+   
+    def copy(self):
+        """ Return a new solitaire game copy of self. """
+        gameCopy = solitaire()
+
+        gameCopy.drawDeck = self.drawDeck.copy()
+        gameCopy.discardDeck = [card for card in self.discardDeck]
+
+        gameCopy.hPile = self.hPile.copy()
+        gameCopy.dPile = self.dPile.copy()
+        gameCopy.sPile = self.sPile.copy()
+        gameCopy.cPile = self.cPile.copy()
+
+        for i in range(7):
+            gameCopy.hand[i] = self.hand[i].copy()
+
+        gameCopy.drawnCard = self.drawnCard
+        gameCopy.drawStyle = self.drawStyle
+
+        return gameCopy
+
 
     def play(self):
         """ Main execution loop for gameplay. """
@@ -80,7 +116,7 @@ class manager:
         # get user choice
 	choice = ""
 	while choice != "e":
-	    print(self)
+            print(self)
 	    print("Enter... \n- d to draw \n- # of pile to move from \n- c to auto-complete \n- o for options \n- e to exit \n")
             choice = raw_input("Choice: ")
 
@@ -90,7 +126,7 @@ class manager:
 	    elif choice == "e":      # quit game
 		continue 
             elif choice == "c":      # try to auto-complete
-                self.autocomplete()
+                choice = self.autocomplete()
             elif choice == "o":      # display options
                 self.options()
             else:                    # move card(s)
@@ -102,25 +138,114 @@ class manager:
 	            continue
 
                 # check for win
-	        if self.win():
-		    print("\nYOU WON!!")
-		    print(self)
-		    choice = "e"
+	        choice = self.checkWin()
 	    
 
-    def win(self):
+    def checkWin(self):
         """ Check for completed game. """
         for p in [self.dPile, self.hPile, self.sPile, self.cPile]:
 	    if len(p.cards) != 13:       # assumes all errors were caught previously
-		return False
-	return True
+		return
+
+        print("\nYOU WON!!")
+        print(self)
+        print('')
+        return "e"       # for exit
+
 
     def autocomplete(self):
         """ Attempt to auto-complete the game. """
-        if not self.drawDeck.empty():
+        if not (self.drawDeck.empty() and self.discardDeck == []):
             print("There are still cards in the draw deck. Cannot auto-complete.")
             return
+
+        gameCopy = self.copy()
+        stuck = False
+        while not stuck:
+            stuck = True            # assume no cards were moved
+            # try to move top card from each pile to suit pile
+            for pile in gameCopy.hand:
+                try:
+                    result = gameCopy.moveToSuit(pile) 
+                except:         # don't report exceptions
+                    continue
+                
+                stuck = False   # successfully moved a card
+
+            if gameCopy.checkWin() == "e":
+                return "e"          # for exit
+
+        print("Unable to auto-complete. Keep trying!")
+
+
+    def moveToHand(self, FROM, TO, numCards): 
+        """ Attempt to move card(s) to another pile. """
+
+        if FROM.empty():
+            return False
+
+        # make copies to edit
+        toCopy = TO.copy()
+        fromCopy = FROM.copy()
+
+        # try to move each card, test for errors
+        for i in range(numCards, 0, -1):
+            card = fromCopy.get(i)
+            if card.val != "king":
+                # can only move kings to empty
+                if toCopy.empty():
+                    raise EmptyException
+                # must move onto card 1 greater than self
+                elif not card.isOneLessThan(toCopy.top()):
+                    raise OrderException
+                # must move onto card of opposite color
+                elif not self.colorMatch(card, toCopy.top()):
+                    raise ColorException
+            else:
+                # can only move kings to empty
+                if not toCopy.empty():
+                    raise NotEmptyException
+            
+            toCopy.add(card, True)
+            fromCopy.remove(i)
+
+        # no errors, go ahead and move for real
+        for i in range(numCards, 0, -1):
+            TO.add(FROM.get(i), True)
+            FROM.remove(i)
+
+        return True
+
+
+    def moveToSuit(self, FROM):
+        """ Attempt to move a card to its suit pile. """
         
+        card = FROM.top()
+	if card is None:  # empty piles return None from top()
+            return False
+
+        # get suit pile instance
+        pileOps = {'H': self.hPile, 'C': self.cPile, 'D': self.dPile, 'S': self.sPile}
+        TO = pileOps[card.suit[0].upper()]
+        
+        # make sure consecutive
+        if TO.empty():
+            if card.val != "ace":
+                print("must be ace")
+                return False
+        else:
+            if card.val == "ace":
+                print("ace must have empty")
+                return False
+            if not card.isOneMoreThan(TO.top()):
+                print("not consecutive") 
+                return False
+
+        TO.add(card, True)
+        FROM.remove()
+        return True
+
+ 
     def toggleDraw(self):
         """ Toggle draw style between 1- and 3-card draw. """
         self.drawStyle = 3 if self.drawStyle == 1 else 1
@@ -158,7 +283,7 @@ class manager:
                self.drawnCard = self.drawDeck.top()
 
             # move discard back to draw deck, take 3rd card
-            elif self.drawDeck.size() + self.discardDeck.size() >= 3:
+            elif self.drawDeck.size() + self.discardDeck.size() >= 3:   # improve this section
                 if self.drawDeck.size() == 2:
                     for _ in range(2):
                         c = self.drawDeck.top()
@@ -199,14 +324,14 @@ class manager:
 	try:
 	    toPile = int(toPile)
 	except ValueError:
-	    toPile = toPile.upper()
+	    toPile = None
 
 	# make sure FROM and TO piles are valid
 	if fromPile not in range(8):
 	    print("Can only move cards from piles 0 - 7.")
 	    return	
-	if toPile not in range(1,8) and toPile not in ['H', 'C', 'D', 'S']:
-	    print("Can only move cards to piles 1 - 7 and piles H, C, D, and S.")
+	if toPile not in range(1,8) and toPile is not None:
+	    print("Can only move cards to piles 1 - 7 or the suit piles.")
 	    return
 	if fromPile == toPile:
 	    print("From and to piles must be different.")
@@ -218,7 +343,7 @@ class manager:
 	    TO = self.hand[toPile-1]
 	else:
 	    pileOps = {'H': self.hPile, 'C': self.cPile, 'D': self.dPile, 'S': self.sPile}
-	    TO = pileOps[toPile]
+	    TO = pileOps[FROM.top().suit[0].upper()]
 
 	# get number of cards to move
 	numCards = raw_input("Number of cards: ")
@@ -232,60 +357,35 @@ class manager:
 	if numCards > FROM.numFaceup():
 	    print("There aren't " + str(numCards) + " faceup cards on that pile.")
 	    return
-	elif toPile not in range(1,8) and numCards > 1:
-	    print("Can only move one card at a time to a suit pile.")
-	    return
 
-	# if to pile is an empty pile, top from card must be king or ace, depending
-	topFromCard = FROM.get(-numCards)
-	if TO.empty() and toPile in range(1,8) and topFromCard.val != 'king':
-	    print("Can only move kings to empty spaces.")
-	    return
-	elif TO.empty() and toPile not in range(1,8) and topFromCard.val != 'ace':
-	    print("Can only move aces to empty suit piles.")
-	    print("You tried to move: " + str(topFromCard))
-	    return
-
-	# moving cards need to be consecutive & color-alternating
-	for i in range(-1, -numCards, -1):
-	    if not self.colorMatch(FROM.get(i), FROM.get(i-1)):
-	        print(str(FROM.get(i)) + " must be a different color than " +\
-	              str(FROM.get(i-1)))
+        # moving cards need to be consecutive & color-alternating
+	for i in range(1, numCards):
+	    try: 
+                self.colorMatch(FROM.get(i), FROM.get(i+1))
+            except ColorException:
+                print("Cards do not have correct colors.")
 	        return
-            if not FROM.get(i).isOneLessThan(FROM.get(i-1)):
-
-		print("Cards aren't consecutive; " + str(FROM.get(i)) +\
-		      " is not one less than " + str(FROM.get(i-1)))
+            if not FROM.get(i).isOneLessThan(FROM.get(i+1)):
+                print("Cards are not properly consecutive.")
 		return
-
-	# to and from need to be consecutive & correct colors
-	if not TO.empty():
-	    toCard = TO.top()
-	    if not self.colorMatch(topFromCard, toCard, toPile):
-	        print(str(topFromCard) + " must be a different color than " + str(toCard))
-	        return	
-	    
-	    # moving to suit pile; to pile card must be smaller
-	    if toPile not in range(1,8):
-                if not topFromCard.isOneMoreThan(toCard):
-	       	    print("Cards aren't consecutive; " + str(topFromCard) +\
-                          " is not one more than " + str(toCard))
-	    	    return
-	    # moving to hand pile; to pile card must be higher
-	    else:
-                if not topFromCard.isOneLessThan(toCard):
-		    print("Cards aren't consecutive; " + str(topFromCard) +\
-                          " is not one less than " + str(toCard))
-		    return
-
-	# move the card!
-	toMove = []
-	for _ in range(numCards):
-	    toMove.insert(0, FROM.top())  # flip order; make sure moving top card first
-	    FROM.remove()
-	for c in toMove:
-	    TO.add(c, True)
-	   
+        
+        # try to move the cards
+        try:
+            result = self.moveToHand(FROM, TO, numCards) if toPile in range(1, 8) else  self.moveToSuit(FROM)
+        except OrderException:
+            print("Cards are not properly consecutive.")
+            return
+        except ColorException:
+            print("Cards do not have correct colors.")
+            return
+        except NotEmptyException:
+            print("Kings can only be moved to empty spaces.")  
+            return
+        except EmptyException:
+            print("Only kings can be moved to empty spaces.")  
+            return
+        print("")
+ 
 	# flip over a card if applicable
 	if fromPile != 0 and not FROM.empty():
 	    FROM.top().flipUp()
@@ -306,14 +406,15 @@ class manager:
     def colorMatch(self, a, b, toPile=1):
 	# moving to hand pile; must be alternating color
 	if toPile in range(1,8):
-	    if a.suit in ['Spades', 'Clubs']:
-	        return b.suit in ['Diamonds', 'Hearts']
-	    return b.suit in ['Spades', 'Clubs']
-	# moving to suit pile; must be same color
+	    if (a.suit in ['Spades', 'Clubs'] and b.suit in ['Spades', 'Clubs']) or\
+	    (a.suit in ['Diamonds', 'Hearts'] and b.suit in ['Diamonds', 'Hearts']):
+                raise ColorException
+	
+        # moving to suit pile; must be same color
 	else:
-	    if a.suit in ['Spades', 'Clubs']:
-	        return b.suit in ['Spades', 'Clubs']
-	    return b.suit in ['Diamonds', 'Hearts']
+	    if (a.suit in ['Spades', 'Clubs'] and b.suit in ['Diamonds', 'Hearts']) or\
+	    (a.suit in ['Diamonds', 'Hearts'] and b.suit in ['Spades', 'Clubs']):
+                raise ColorException
 
 
     def options(self):
@@ -343,8 +444,8 @@ class manager:
 
 
 def main():
-    soli = manager()
-    soli.play()
+    game = solitaire()
+    game.play()
 
 main()
 

@@ -24,6 +24,7 @@ class card:
 	self.color = RED if self.suit in ['Hearts', 'Diamonds'] else BLACK
         self.colorize = True
         self.useSymbol = True
+        self.acesLow = True
 
     def __repr__(self):
         """ Display -- for facedown cards, otherwise 1-character value & suit letter / symbol. """
@@ -38,6 +39,14 @@ class card:
     def __eq__(self, other):
         return self.name == other.name
 
+    def copy(self):
+        """ Return a new card instance equivalent to self. """
+        cardCopy = card(self.suit, self.val, self.points)
+        cardCopy.faceup = self.faceup 
+        cardCopy.colorize = self.colorize 
+        cardCopy.useSymbol = self.useSymbol
+        cardCopy.acesLow = self.acesLow
+        return cardCopy
 
     def flip(self):
         """ Flip card. """
@@ -54,12 +63,27 @@ class card:
 
     def isOneLessThan(self, other):
         """ Return true if self has value one less than the other card. """
-        return other.points == self.points + 1
+        order = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'jack', 'queen', 'king']
+        if self.acesLow:
+            order.insert(0, 'ace')
+        else:
+            order.append('ace')
+        i = order.index(self.val)
+        if i < 12 and other.val == order[i+1]:
+            return True
+        return False
 
     def isOneMoreThan(self, other):
         """ Return true if self has value one greater than the other card. """
-        return not other.points == self.points - 1
-
+        order = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'jack', 'queen', 'king']
+        if self.acesLow:
+            order.insert(0, 'ace') 
+        else:
+            order.append('ace')
+        i = order.index(self.val)
+        if i > 0 and other.val == order[i-1]:
+            return True
+        return False
 
 class deck:
     def __init__(self, populate=True):
@@ -82,6 +106,13 @@ class deck:
         """ Return list of cards. """
 	return str([card.__str__() + ',' for card in self.cards])
 
+    def copy(self):
+        """ Return a new deck instance equivalent to self. """
+        deckCopy = deck(False)           # don't auto-populate
+        deckCopy.repopulate([card for card in self.cards])  # populate with current deck's cards
+        deckCopy.colorize = self.colorize
+        deckCopy.symbol = self.symbol
+        return deckCopy
 
     def size(self):
         """ Return number of cards in deck. """
@@ -121,11 +152,17 @@ class deck:
 
     def acesLow(self):
         """ Set aces to low. """
-        self.setPoints('ace', 1)
+        for card in self.cards:
+            if card.val == 'ace':
+                card.points = 1
+            card.acesLow = True
 
     def acesHigh(self):
         """ Set aces to high. """
-        self.setPoints('ace', 10)
+        for card in self.cards:
+            if card.val == 'ace':
+                card.points = 10
+            card.acesLow = False
 
     def setPoints(self, val, points, suit=""):
         """ Set point value of a card. """
@@ -198,6 +235,13 @@ class pile(deck):
             return ['__']
         return [card.__repr__() for card in self.cards]
 
+    def copy(self):
+        """ Return a new deck instance equivalent to self. """
+        pileCopy = pile(False, [card for card in self.cards]) 
+        pileCopy.colorize = self.colorize
+        pileCopy.symbol = self.symbol
+        return pileCopy
+
     def add(self, card, visible=False):
         """ Add faceup card to top of stack; 
             slip facedown card in stack as the topmost facedown. """
@@ -208,14 +252,14 @@ class pile(deck):
             self.cards.insert(self.stackIndex+1, card) # add to top of facedown stack
             self.stackIndex += 1
 
-    def remove(self, index=-1):
+    def remove(self, index=1):
         """ Remove card at given index. """
-        self.cards.pop(index)         # remove 'top' card by default
+        self.cards.pop(-index)         # remove 'top' card by default
 
-    def get(self, index=-1):
-        """ Return card at given index. """
+    def get(self, index=1):
+        """ Return card at given index from top down. """
         if not self.empty():
-            return self.cards[index]  # return 'top' card by default
+            return self.cards[-index]  # return 'top' card by default
 
     def top(self):
         """ Return topmost card. """
