@@ -6,6 +6,7 @@
 
 from cards import *
 
+
 class OrderException(Exception):
     pass
 
@@ -18,6 +19,8 @@ class EmptyException(Exception):
 class NotEmptyException(Exception):
     pass
 
+class AcesStartException(Exception):
+    pass
 
 
 class solitaire:
@@ -28,6 +31,7 @@ class solitaire:
 	self.discardDeck = []
 	self.drawnCard = None
         self.drawStyle = 1              # default is 1-card draw
+        self.linesWritten = 0
 
 	# make 4 empty suit piles
         self.dPile = pile()
@@ -43,6 +47,7 @@ class solitaire:
             self.hand[i].add(self.drawDeck.deal(), True)
             for j in range(i+1,7):
                 self.hand[j].add(self.drawDeck.deal())
+
 
     def __repr__(self):
         text = ''
@@ -86,8 +91,16 @@ class solitaire:
                 else:
                     text += '   '
 
+        self.linesWritten = len(text.split('\n'))
         return text
-   
+  
+ 
+    def error(self, msg):
+        """ Display error message, increment lines written. """
+        self.linesWritten += 1
+        t = raw_input("Error: " + msg + " Hit enter to continue: ")
+
+
     def copy(self):
         """ Return a new solitaire game copy of self. """
         gameCopy = solitaire()
@@ -109,32 +122,44 @@ class solitaire:
         return gameCopy
 
 
+    def clear(self):
+        """ Clear terminal screen. """
+        print("\033[1;0H")
+        for _ in range(self.linesWritten):
+            print("                                                                      ")
+        print("\033[1;0H")
+
+
     def play(self):
         """ Main execution loop for gameplay. """
 
         # get user choice
 	choice = ""
 	while choice != "e":
-	    print(self)
+            
+            # display game
+            self.clear()
+ 	    print(self)
 	    print("Enter... \n- d to draw \n- # of pile to move from \n- c to auto-complete \n- o for options \n- e to exit \n")
             choice = raw_input("Choice: ")
+            self.linesWritten += 8 
 
             # call appropriate method
-	    if choice == "d":        # draw from deck
+	    if choice == "d":               # draw from deck
                 self.draw()
-	    elif choice == "e":      # quit game
+	    elif choice == "e":             # quit game
 		continue 
-            elif choice == "c":      # try to auto-complete
+            elif choice == "c":             # try to auto-complete
                 choice = self.autocomplete()
-            elif choice == "o":      # display options
+            elif choice == "o":             # display options
                 self.options()
-            else:                    # move card(s)
-	        try:
+            else:                           # move card(s)
+                try:
 	            fromPile = int(choice)
 		    self.move(fromPile)
 	        except ValueError:
-	            print("From pile # must be between 0 and 8.")
-	            continue
+                    self.error("From pile # must be between 0 and 8.")
+                    continue
 
                 # check for win
 	        choice = self.checkWin()
@@ -230,33 +255,20 @@ class solitaire:
         # make sure consecutive
         if TO.empty():
             if card.val != "ace":
-                print("must be ace")
+                raise AcesStartException
                 return False
         else:
             if card.val == "ace":
-                print("ace must have empty")
+                raise AcesStartException
                 return False
             if not card.isOneMoreThan(TO.top()):
-                print("not consecutive") 
+                raise OrderException
                 return False
 
         TO.add(card, True)
         FROM.remove()
         return True
 
-
-    def win(self):
-        """ Check for completed game. """
-        for p in [self.dPile, self.hPile, self.sPile, self.cPile]:
-	    if len(p.cards) != 13:       # assumes all errors were caught previously
-		return False
-	return True
-
-    def autocomplete(self):
-        """ Attempt to auto-complete the game. """
-        if not self.drawDeck.empty():
-            print("There are still cards in the draw deck. Cannot auto-complete.")
-            return
         
     def toggleDraw(self):
         """ Toggle draw style between 1- and 3-card draw. """
@@ -271,7 +283,7 @@ class solitaire:
                 self.drawDeck.repopulate(self.discardDeck)
                 self.discardDeck = []
             else:
-                print("There are no more cards in the draw pile.")
+                self.error("There are no more cards in the draw pile.")
 		return
 
 	# move old card
@@ -337,16 +349,17 @@ class solitaire:
 	    toPile = int(toPile)
 	except ValueError:
 	    toPile = None
+        self.linesWritten += 1
 
 	# make sure FROM and TO piles are valid
 	if fromPile not in range(8):
-	    print("Can only move cards from piles 0 - 7.")
+	    self.error("Can only move cards from piles 0 - 7.")
 	    return	
 	if toPile not in range(1,8) and toPile is not None:
-	    print("Can only move cards to piles 1 - 7 or the suit piles.")
+	    self.error("Can only move cards to piles 1 - 7 or the suit piles.")
 	    return
 	if fromPile == toPile:
-	    print("From and to piles must be different.")
+	    self.error("From and to piles must be different.")
 	    return
 
 	# get FROM and TO pile instances
@@ -363,40 +376,40 @@ class solitaire:
 	    numCards = int(numCards)
 	except ValueError:
 	    numCards = FROM.numFaceup()   # assume move all faceup cards
-	print('')
+	print("")
+        self.linesWritten += 2
 	
 	# make sure number of cards is valid
 	if numCards > FROM.numFaceup():
-	    print("There aren't " + str(numCards) + " faceup cards on that pile.")
+	    self.error("There aren't " + str(numCards) + " faceup cards on that pile.")
 	    return
 
         # moving cards need to be consecutive & color-alternating
 	for i in range(1, numCards):
-	    try: 
-                self.colorMatch(FROM.get(i), FROM.get(i+1))
-            except ColorException:
-                print("Cards do not have correct colors.")
-	        return
+            if not self.colorMatch(FROM.get(i), FROM.get(i+1)):
+                self.error("Cards do not have correct colors.")
+                return
             if not FROM.get(i).isOneLessThan(FROM.get(i+1)):
-                print("Cards are not properly consecutive.")
+                self.error("Cards are not properly consecutive.")
 		return
         
         # try to move the cards
         try:
             result = self.moveToHand(FROM, TO, numCards) if toPile in range(1, 8) else  self.moveToSuit(FROM)
         except OrderException:
-            print("Cards are not properly consecutive.")
+            self.error("Cards are not properly consecutive.")
             return
         except ColorException:
-            print("Cards do not have correct colors.")
+            self.error("Cards do not have correct colors.")
             return
         except NotEmptyException:
-            print("Kings can only be moved to empty spaces.")  
+            self.error("Kings can only be moved to empty spaces.")  
             return
         except EmptyException:
-            print("Only kings can be moved to empty spaces.")  
+            self.error("Only kings can be moved to empty spaces.")  
             return
         print("")
+        self.linesWritten += 1
  
 	# flip over a card if applicable
 	if fromPile != 0 and not FROM.empty():
@@ -416,17 +429,20 @@ class solitaire:
 
 
     def colorMatch(self, a, b, toPile=1):
-	# moving to hand pile; must be alternating color
+	""" Make sure colors match. By default assumes color must alternate. """
+
+        # moving to hand pile; must be alternating color
 	if toPile in range(1,8):
 	    if (a.suit in ['Spades', 'Clubs'] and b.suit in ['Spades', 'Clubs']) or\
 	    (a.suit in ['Diamonds', 'Hearts'] and b.suit in ['Diamonds', 'Hearts']):
-                raise ColorException
-	
+	        return False
         # moving to suit pile; must be same color
 	else:
 	    if (a.suit in ['Spades', 'Clubs'] and b.suit in ['Diamonds', 'Hearts']) or\
 	    (a.suit in ['Diamonds', 'Hearts'] and b.suit in ['Spades', 'Clubs']):
-                raise ColorException
+                return False
+
+        return True
 
 
     def options(self):
@@ -452,7 +468,8 @@ class solitaire:
         # toggle draw style
         elif choice == "d":
             self.toggleDraw()
-        print('')
+        print("")
+        self.linesWritten += 6
 
 
 def main():
