@@ -1,6 +1,6 @@
 # TITLE:  cards.py
 # AUTHOR: M. Montgomery
-# DATE:   07.03.2017
+# DATE:   07.06.2017
 
 import random
 
@@ -84,6 +84,7 @@ class card:
         if i > 0 and other.val == order[i-1]:
             return True
         return False
+
 
 class deck:
     def __init__(self, populate=True):

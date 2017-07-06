@@ -1,6 +1,6 @@
 # TITLE:  solitaire.py
 # AUTHOR: M. Montgomery
-# DATE:   07.05.2017
+# DATE:   07.06.2017
 
 # USAGE:  python solitaire.py 
 
@@ -87,7 +87,6 @@ class solitaire:
                     text += '   '
 
         return text
-
    
     def copy(self):
         """ Return a new solitaire game copy of self. """
@@ -116,7 +115,7 @@ class solitaire:
         # get user choice
 	choice = ""
 	while choice != "e":
-            print(self)
+	    print(self)
 	    print("Enter... \n- d to draw \n- # of pile to move from \n- c to auto-complete \n- o for options \n- e to exit \n")
             choice = raw_input("Choice: ")
 
@@ -245,7 +244,20 @@ class solitaire:
         FROM.remove()
         return True
 
- 
+
+    def win(self):
+        """ Check for completed game. """
+        for p in [self.dPile, self.hPile, self.sPile, self.cPile]:
+	    if len(p.cards) != 13:       # assumes all errors were caught previously
+		return False
+	return True
+
+    def autocomplete(self):
+        """ Attempt to auto-complete the game. """
+        if not self.drawDeck.empty():
+            print("There are still cards in the draw deck. Cannot auto-complete.")
+            return
+        
     def toggleDraw(self):
         """ Toggle draw style between 1- and 3-card draw. """
         self.drawStyle = 3 if self.drawStyle == 1 else 1
