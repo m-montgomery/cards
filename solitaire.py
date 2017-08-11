@@ -1,6 +1,6 @@
 # TITLE:  solitaire.py
 # AUTHOR: M. Montgomery
-# DATE:   07.06.2017
+# DATE:   07.10.2017
 
 # USAGE:  python solitaire.py 
 
@@ -97,8 +97,9 @@ class solitaire:
  
     def error(self, msg):
         """ Display error message, increment lines written. """
-        self.linesWritten += 1
-        t = raw_input("Error: " + msg + " Hit enter to continue: ")
+        self.linesWritten += 2
+        print("Error: " + msg)
+        t = raw_input("Hit enter to continue: ")
 
 
     def copy(self):
@@ -118,6 +119,7 @@ class solitaire:
 
         gameCopy.drawnCard = self.drawnCard
         gameCopy.drawStyle = self.drawStyle
+        gameCopy.linesWritten = self.linesWritten
 
         return gameCopy
 
@@ -150,7 +152,8 @@ class solitaire:
 	    elif choice == "e":             # quit game
 		continue 
             elif choice == "c":             # try to auto-complete
-                choice = self.autocomplete()
+                if self.autocomplete():
+                    choice = "e"
             elif choice == "o":             # display options
                 self.options()
             else:                           # move card(s)
@@ -171,6 +174,7 @@ class solitaire:
 	    if len(p.cards) != 13:       # assumes all errors were caught previously
 		return
 
+        self.clear()
         print("\nYOU WON!!")
         print(self)
         print('')
@@ -181,7 +185,7 @@ class solitaire:
         """ Attempt to auto-complete the game. """
         if not (self.drawDeck.empty() and self.discardDeck == []):
             print("There are still cards in the draw deck. Cannot auto-complete.")
-            return
+            return False
 
         gameCopy = self.copy()
         stuck = False
@@ -197,9 +201,10 @@ class solitaire:
                 stuck = False   # successfully moved a card
 
             if gameCopy.checkWin() == "e":
-                return "e"          # for exit
+                return True 
 
         print("Unable to auto-complete. Keep trying!")
+        return False
 
 
     def moveToHand(self, FROM, TO, numCards): 
@@ -368,7 +373,10 @@ class solitaire:
 	    TO = self.hand[toPile-1]
 	else:
 	    pileOps = {'H': self.hPile, 'C': self.cPile, 'D': self.dPile, 'S': self.sPile}
-	    TO = pileOps[FROM.top().suit[0].upper()]
+	    try:
+                TO = pileOps[FROM.top().suit[0].upper()]
+            except:
+                return    # probably entered invalid FROM pile #
 
 	# get number of cards to move
 	numCards = raw_input("Number of cards: ")
@@ -395,7 +403,7 @@ class solitaire:
         
         # try to move the cards
         try:
-            result = self.moveToHand(FROM, TO, numCards) if toPile in range(1, 8) else  self.moveToSuit(FROM)
+            result = self.moveToHand(FROM, TO, numCards) if toPile in range(1, 8) else self.moveToSuit(FROM)
         except OrderException:
             self.error("Cards are not properly consecutive.")
             return
@@ -407,6 +415,9 @@ class solitaire:
             return
         except EmptyException:
             self.error("Only kings can be moved to empty spaces.")  
+            return
+        except AcesStartException:
+            self.error("Only aces can start suit piles.")
             return
         print("")
         self.linesWritten += 1
